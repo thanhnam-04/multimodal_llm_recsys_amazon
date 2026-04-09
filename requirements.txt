@@ -39,3 +39,5 @@ flake8>=6.1.0
 # Optional dependencies
 python-dotenv>=1.0.0
 streamlit>=1.33.0
+
+wrapt>=2.1.2

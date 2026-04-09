@@ -525,17 +525,18 @@ def save_processed_data(data: pd.DataFrame, output_path: Union[str, Path]):
 # ==========================================
 
 class ImageEncoder:
-    def __init__(self, image_size: int = 224, vision_model_name: str = "resnet-18"):
+    def __init__(self, image_size: int = 224, vision_model_name: str = "clip-vit-b-32"):
         """
         Initialize the multi-modal processor for handling both text and image data.
         Args:
             image_size (int): Size to resize images to
-            vision_model_name (str): Vision model name (resnet-18, resnet-50, mobilenet-v2, etc.)
+            vision_model_name (str): Vision model name (clip-vit-b-32, resnet-18, mobilenet-v2, etc.)
         """
         self.image_size = image_size
         
         # Map model names to HuggingFace model identifiers
         model_mapping = {
+            "clip-vit-b-32": "openai/clip-vit-base-patch32",
             "resnet-18": "microsoft/resnet-18",
             "resnet-50": "microsoft/resnet-50",
             "mobilenet-v2": "google/mobilenet_v2_1.0_224",
@@ -567,7 +568,7 @@ class ImageEncoder:
             logger.error(f"Failed to load vision model: {e}")
             raise
 
-        # Image transformation pipeline
+        # Keep this for backward compatibility; image_processor is used for model-specific preprocessing.
         self.transform = transforms.Compose([
             transforms.Resize((image_size, image_size)),
             transforms.ToTensor(),
@@ -588,14 +589,12 @@ class ImageEncoder:
             Optional[torch.Tensor]: Processed image tensor if successful, None otherwise
         """
         try:
-            # Load and transform image
+            # Use the HF image processor so each backbone (CLIP/ResNet/...) gets correct normalization.
             with Image.open(image_path) as img:
-                # Convert to RGB if necessary
                 if img.mode != 'RGB':
                     img = img.convert('RGB')
-                # Apply transformations
-                image_tensor = self.transform(img)
-                # Ensure we have a tensor
+                processed = self.image_processor(images=img, return_tensors="pt")
+                image_tensor = processed["pixel_values"].squeeze(0)
                 if not isinstance(image_tensor, torch.Tensor):
                     logger.warning(f"Transform did not return a tensor for {image_path}")
                     return None
@@ -615,18 +614,17 @@ class ImageEncoder:
             torch.Tensor: Image embedding
         """
         with torch.no_grad():
-            # Get the output from the vision model
-            outputs = self.vision_model(image_tensor.unsqueeze(0))
-            
-            # For ResNet models, use the pooled output directly
-            if hasattr(outputs, 'pooler_output') and outputs.pooler_output is not None:
+            outputs = self.vision_model(pixel_values=image_tensor.unsqueeze(0))
+
+            # CLIPModel exposes semantically aligned embeddings directly.
+            if hasattr(outputs, 'image_embeds') and outputs.image_embeds is not None:
+                return outputs.image_embeds
+            elif hasattr(outputs, 'pooler_output') and outputs.pooler_output is not None:
                 return outputs.pooler_output
             elif hasattr(outputs, 'last_hidden_state'):
-                # Apply average pooling to reduce the size of the embeddings
                 pooled_output = torch.mean(outputs.last_hidden_state, dim=1)
                 return pooled_output
             else:
-                # Fallback: use the first output
                 return outputs[0].mean(dim=1)
 
 

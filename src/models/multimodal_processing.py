@@ -21,7 +21,7 @@ class MultiModalProcessor:
         self, 
         image_size: int = 224, 
         cache_dir: str = "data/image_cache",
-        vision_model_name: str = "microsoft/resnet-50"
+        vision_model_name: str = "openai/clip-vit-base-patch32"
     ):
         """Initialize the multi-modal processor for handling product data.
         

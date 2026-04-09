@@ -129,7 +129,7 @@ class AmazonDatasetPhi(Dataset):
     _sequence_cache = {}
     
     # Adjust Dataset to Phi3 format with unified multimodal embedding
-    def __init__(self, data, tokenizer, special_chars, multimodal_encoder=None, vision_model_name="resnet-18", config=None):
+    def __init__(self, data, tokenizer, special_chars, multimodal_encoder=None, vision_model_name="clip-vit-b-32", config=None):
         # Check if image processing is enabled (default to True for multimodal)
         enable_image_processing = config.get('data_config', {}).get('enable_image_processing', True)
         if not enable_image_processing:

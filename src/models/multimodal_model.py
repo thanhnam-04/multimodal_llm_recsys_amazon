@@ -11,7 +11,7 @@ class MultiModalGPTModel(nn.Module):
         d_model: int,
         max_seq_len: int,
         dropout: float = 0.1,
-        image_embedding_dim: int = 2048  # ResNet-50 output dimension
+        image_embedding_dim: int = 512  # CLIP ViT-B/32 image embedding dimension
     ):
         """
         Initialize the multi-modal GPT model.

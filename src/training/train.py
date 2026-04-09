@@ -154,7 +154,7 @@ def main():
         CustomDataset = AmazonDatasetAlpaca
 
     # Get vision model configuration
-    vision_model_name = config['custom_config'].get('vision_model', 'resnet-18')
+    vision_model_name = config['custom_config'].get('vision_model', 'clip-vit-b-32')
     logger.info(f"Using vision model: {vision_model_name}")
 
     # Create a single multimodal encoder to share between datasets

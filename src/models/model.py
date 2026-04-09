@@ -220,7 +220,7 @@ class GPTModel(nn.Module):
             
             # Image encoder for better image processing
             self.image_encoder = nn.Sequential(
-                nn.Linear(cfg.get("image_embedding_dim", 2048), 1024),
+                nn.Linear(cfg.get("image_embedding_dim", 512), 1024),
                 nn.ReLU(),
                 nn.Dropout(0.1),
                 nn.Linear(1024, cfg["emb_dim"]),
