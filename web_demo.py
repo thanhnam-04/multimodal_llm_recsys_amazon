@@ -547,6 +547,7 @@ def main() -> None:
                 st.write(items_to_display_titles(display_items, catalog, output_name_map))
                 render_predicted_items_with_images(display_items, catalog, output_name_map)
 
+
                 with st.expander("Show nearest matched samples"):
                     for i, nb in enumerate(result["neighbors"], start=1):
                         st.markdown(f"**Neighbor {i}** - similarity: {nb['similarity']}")
