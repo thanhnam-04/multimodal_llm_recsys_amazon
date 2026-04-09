@@ -1,0 +1,17 @@
+{
+    "evaluation_type": "basic",
+    "k": 5,
+    "num_samples": 500,
+    "metrics": {
+        "precision@5": 0.7296,
+        "recall@5": 0.7882666666666667,
+        "hit_rate@5": 0.73,
+        "ndcg@5": 0.7613109276292469,
+        "mrr": 0.729,
+        "map@5": 0.7877533333333333,
+        "coverage": 0.001272264631043257,
+        "diversity": 0.002,
+        "novelty": -8.511752653767466
+    },
+    "data_path": "data/processed/test_with_responses_processed.json"
+}

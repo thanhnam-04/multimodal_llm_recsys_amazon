@@ -1,0 +1,135 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Project specific
+logs/
+checkpoints/
+cache/
+data/images/
+*.pt
+*.pth
+*.ckpt
+*.log
+wandb/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/_build/
+docs/generated/
+
+# Distribution
+*.tar.gz
+*.whl
+
+# Misc
+*.bak
+*.tmp
+*.temp
+.env
+.env.*
+!.env.example 
+
+# Manually added
+
+*.keras
+*.lightning_studio
+*.pth
+*.vscode
+*.idea
+*.studiorc
+*on_start.sh
+*on_start.sh.log
+*settings.json
+info.txt
+paper/
+
+# virtual environment
+mlm_recsys/
+
+output/model/
+
+
+
+# Lightning ignore
+.cache
+.conda
+.condarc
+.config
+.gitconfig
+.hushlogin
+.ipython
+.local
+.oh-my-zsh
+.profile
+.screenrc
+.vimrc
+.ssh
+.sudo_as_admin_successful
+.zcompdump*
+.zsh_history
+.zshrc
+.zshenv
+.zlogin
+.zprofile
+.zlogout
+.lightning
+.nv
+.nvm
+.npm
+.bower
+output/model/
+*.safetensors
+output/model/
+*.safetensors
+output/
+*.safetensors
+*.pt

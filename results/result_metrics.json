@@ -1,0 +1,29 @@
+{
+  "evaluation_timestamp": "2026-04-09T08:43:09.568103",
+  "two_track_evaluation": {},
+  "model_performance": {},
+  "baseline_comparison": {},
+  "ablation_insights": {
+    "best_modality": "text",
+    "best_fusion_method": "concatenation",
+    "modality_contributions": {},
+    "fusion_method_performance": {}
+  },
+  "cross_category_performance": {},
+  "summary": {
+    "overall_performance": "Poor",
+    "key_strengths": [],
+    "key_weaknesses": [
+      "Low precision - many irrelevant recommendations",
+      "Low recall - missing relevant items",
+      "Low hit rate - rarely finding relevant items"
+    ],
+    "recommendations": [
+      "Consider increasing training data size",
+      "Review model architecture and hyperparameters",
+      "Implement better data filtering strategies",
+      "Consider ensemble methods"
+    ],
+    "two_track_analysis": {}
+  }
+}

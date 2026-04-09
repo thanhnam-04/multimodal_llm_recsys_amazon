@@ -1,0 +1,35 @@
+{
+  "model_config": {
+    "hf_model_name": "Qwen/Qwen2.5-7B-Instruct",
+    "max_length": 1024,
+    "use_4bit": false
+  },
+  "training_config": {
+    "num_epochs": 3,
+    "batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "learning_rate": 0.0002,
+    "warmup_steps": 50,
+    "max_grad_norm": 1.0,
+    "early_stopping_patience": 2,
+    "num_workers": 2,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "lora_target_modules": [
+      "q_proj",
+      "k_proj",
+      "v_proj",
+      "o_proj",
+      "gate_proj",
+      "up_proj",
+      "down_proj"
+    ]
+  },
+  "generation_config": {
+    "max_new_tokens": 96,
+    "temperature": 0.2,
+    "top_p": 0.9,
+    "max_samples": 300
+  }
+}
