@@ -18,6 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_PATH = BASE_DIR / "data" / "processed" / "test_with_responses.json"
 METRICS_PATH = BASE_DIR / "results" / "basic_evaluation_results.json"
 TITLE_MAP_PATH = BASE_DIR / "data" / "processed" / "parent_asin_title.json"
+PROCESSED_JSONL_PATH = BASE_DIR / "data" / "processed" / "processed_data.jsonl"
 END_TOKEN = "<|endoftext|>"
 
 
@@ -25,6 +26,19 @@ def parse_items(raw: str) -> list[str]:
     if not raw:
         return []
     return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def parse_output_names(raw: str) -> list[str]:
+    if not raw:
+        return []
+    names = [item.strip() for item in str(raw).split("|") if item.strip()]
+    normalized: list[str] = []
+    for name in names:
+        if name == END_TOKEN:
+            normalized.append("No further purchase")
+        else:
+            normalized.append(name)
+    return normalized
 
 
 def has_valid_local_image(path_value: Any) -> bool:
@@ -54,21 +68,38 @@ def extract_asin_code(item: str) -> str | None:
     return m.group(1)
 
 
-def item_to_display_title(item: str, catalog: dict[str, dict[str, Any]]) -> str:
+def item_to_display_title(
+    item: str,
+    catalog: dict[str, dict[str, Any]],
+    output_name_map: dict[str, str] | None = None,
+) -> str:
     token = normalize_asin_token(item)
     if token == END_TOKEN:
         return "No further purchase"
+
+    if output_name_map:
+        mapped = str(output_name_map.get(token, "")).strip()
+        if mapped:
+            return mapped
 
     meta = catalog.get(token, {})
     title = str(meta.get("title") or "").strip()
     if title and title not in {"Unknown title", "Untitled recommendation"}:
         return title
 
+    asin = extract_asin_code(token)
+    if asin:
+        return f"Product {asin}"
+
     return "Unknown product"
 
 
-def items_to_display_titles(items: list[str], catalog: dict[str, dict[str, Any]]) -> list[str]:
-    return [item_to_display_title(item, catalog) for item in items]
+def items_to_display_titles(
+    items: list[str],
+    catalog: dict[str, dict[str, Any]],
+    output_name_map: dict[str, str] | None = None,
+) -> list[str]:
+    return [item_to_display_title(item, catalog, output_name_map) for item in items]
 
 
 def resolve_image_for_item(item: str, catalog: dict[str, dict[str, Any]]) -> Path | None:
@@ -135,7 +166,20 @@ def ensure_items_with_images(
         if len(selected) >= limit:
             break
 
-    # Pass 2: if still short, allow items with valid titles even when image cache is missing.
+    # Pass 2: if still short, allow items that have images even when title metadata is missing.
+    if len(selected) < limit:
+        for item in ordered_items:
+            token = normalize_asin_token(item)
+            if token in seen:
+                continue
+            if resolve_image_for_item(token, catalog) is None:
+                continue
+            selected.append(token)
+            seen.add(token)
+            if len(selected) >= limit:
+                break
+
+    # Pass 3: if still short, allow items with valid titles even when image cache is missing.
     if len(selected) < limit:
         for item in ordered_items:
             token = normalize_asin_token(item)
@@ -171,14 +215,15 @@ def build_item_catalog(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return catalog
 
 
-def render_predicted_items_with_images(items: list[str], catalog: dict[str, dict[str, Any]]) -> None:
+def render_predicted_items_with_images(
+    items: list[str],
+    catalog: dict[str, dict[str, Any]],
+    output_name_map: dict[str, str] | None = None,
+) -> None:
     cols = st.columns(5)
     for i, raw_item in enumerate(items[:5]):
         item = normalize_asin_token(raw_item)
-        meta = catalog.get(item, {})
-        title = str(meta.get("title") or "Untitled recommendation")
-        if title in {"Unknown title", "Untitled recommendation"}:
-            continue
+        title = item_to_display_title(item, catalog, output_name_map)
         image_file = resolve_image_for_item(item, catalog)
 
         with cols[i]:
@@ -212,6 +257,38 @@ def load_title_map() -> dict[str, str]:
         if token and title and token not in title_map:
             title_map[token] = title
     return title_map
+
+
+@st.cache_data(show_spinner=False)
+def load_output_name_map() -> dict[str, str]:
+    if not PROCESSED_JSONL_PATH.exists():
+        return {}
+
+    output_name_map: dict[str, str] = {}
+    with PROCESSED_JSONL_PATH.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            output_items = parse_items(row.get("output", ""))
+            output_names = parse_output_names(row.get("output_names", ""))
+
+            for token, name in zip(output_items, output_names):
+                norm_token = normalize_asin_token(token)
+                clean_name = str(name).strip()
+                if not norm_token or norm_token == END_TOKEN or not clean_name:
+                    continue
+                if clean_name == "No further purchase":
+                    continue
+                if norm_token not in output_name_map:
+                    output_name_map[norm_token] = clean_name
+
+    return output_name_map
 
 
 @st.cache_resource(show_spinner=False)
@@ -337,8 +414,20 @@ def main() -> None:
                 catalog[token]["title"] = title
         else:
             catalog[token] = {"title": title, "image_path": None}
+
+    # Secondary fallback map from processed output/output_names pairs.
+    output_name_map = load_output_name_map()
+    for token, title in output_name_map.items():
+        if token in catalog:
+            current = str(catalog[token].get("title") or "").strip()
+            if not current or current in {"Unknown title", "Untitled recommendation"}:
+                catalog[token]["title"] = title
+        else:
+            catalog[token] = {"title": title, "image_path": None}
+
     df["pred_items"] = df["model_response"].fillna("").map(parse_items)
     df["true_items"] = df["output"].fillna("").map(parse_items)
+    df["true_item_names"] = df["output_names"].fillna("").map(parse_output_names)
     df["pred_source"] = "model"
     no_pred_mask = df["pred_items"].map(lambda x: len(x) == 0)
     if no_pred_mask.any():
@@ -377,7 +466,11 @@ def main() -> None:
             st.write(sample.get("input", ""))
 
             st.subheader("Ground Truth (next 5)")
-            st.write(items_to_display_titles(sample.get("true_items", []), catalog))
+            gt_names = sample.get("true_item_names", [])
+            if gt_names:
+                st.write(gt_names)
+            else:
+                st.write(items_to_display_titles(sample.get("true_items", []), catalog, output_name_map))
 
             st.subheader("Model Prediction")
             if sample.get("pred_source") == "fallback_truth":
@@ -390,8 +483,8 @@ def main() -> None:
             )
             if len(display_items) < 5:
                 st.caption("Only items with available images are shown.")
-            st.write(items_to_display_titles(display_items, catalog))
-            render_predicted_items_with_images(display_items, catalog)
+            st.write(items_to_display_titles(display_items, catalog, output_name_map))
+            render_predicted_items_with_images(display_items, catalog, output_name_map)
 
         with right:
             st.subheader("Sample Meta")
@@ -416,7 +509,7 @@ def main() -> None:
 
         if all_pred_items:
             st.subheader("Top Predicted Items (current filter)")
-            all_pred_titles = items_to_display_titles(all_pred_items, catalog)
+            all_pred_titles = items_to_display_titles(all_pred_items, catalog, output_name_map)
             top_items = Counter(all_pred_titles).most_common(15)
             top_df = pd.DataFrame(top_items, columns=["item_title", "count"])
             st.bar_chart(top_df.set_index("item_title"))
@@ -451,13 +544,13 @@ def main() -> None:
                 )
                 if len(display_items) < 5:
                     st.caption("Only items with available images are shown.")
-                st.write(items_to_display_titles(display_items, catalog))
-                render_predicted_items_with_images(display_items, catalog)
+                st.write(items_to_display_titles(display_items, catalog, output_name_map))
+                render_predicted_items_with_images(display_items, catalog, output_name_map)
 
                 with st.expander("Show nearest matched samples"):
                     for i, nb in enumerate(result["neighbors"], start=1):
                         st.markdown(f"**Neighbor {i}** - similarity: {nb['similarity']}")
-                        neighbor_titles = items_to_display_titles(parse_items(nb["model_response"]), catalog)
+                        neighbor_titles = items_to_display_titles(parse_items(nb["model_response"]), catalog, output_name_map)
                         st.write({"title": nb["title"], "suggested_items": neighbor_titles})
                         st.caption(nb["input"])
 
